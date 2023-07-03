@@ -7,12 +7,14 @@ from langchain.docstore.document import Document
 from langchain.embeddings.base import Embeddings
 from langchain.vectorstores.base import VectorStore
 import os
+import shutil
 
 SHEET_URL_X = "https://docs.google.com/spreadsheets/d/"
 SHEET_URL_Y = "/edit#gid="
 SHEET_URL_Y_EXPORT = "/export?gid="
 CACHE_FOLDER = ".embedding-model"
 VECTORDB_FOLDER = ".vectordb"
+EMBEDDING_MODEL = "sentence-transformers/all-mpnet-base-v2"
 
 
 def faq_id(sheet_url: str) -> str:
@@ -69,17 +71,40 @@ def similarity_search(
     return vectordb.similarity_search_with_relevance_scores(query=query, k=k)
 
 
-def load_vectordb_id(faq_id: str, page_content_column: str) -> VectorStore:
-    embedding_function = define_embedding_function("sentence-transformers/all-mpnet-base-v2")
+def load_vectordb_id(
+    faq_id: str,
+    page_content_column: str,
+    embedding_function_name: str = EMBEDDING_MODEL,
+) -> VectorStore:
+    embedding_function = define_embedding_function(embedding_function_name)
     vectordb = None
     try:
         vectordb = get_vectordb(faq_id=faq_id, embedding_function=embedding_function)
     except Exception as e:
-        df = read_df(xlsx_url(faq_id))
-        documents = create_documents(df, page_content_column)
-        vectordb = get_vectordb(faq_id=faq_id, embedding_function=embedding_function, documents=documents)
+        vectordb = create_vectordb_id(faq_id, page_content_column, embedding_function)
+
+    return vectordb
+
+
+def create_vectordb_id(
+    faq_id: str,
+    page_content_column: str,
+    embedding_function: HuggingFaceEmbeddings = None,
+) -> VectorStore:
+    if embedding_function is None:
+        embedding_function = define_embedding_function(EMBEDDING_MODEL)
+
+    df = read_df(xlsx_url(faq_id))
+    documents = create_documents(df, page_content_column)
+    vectordb = get_vectordb(
+        faq_id=faq_id, embedding_function=embedding_function, documents=documents
+    )
     return vectordb
 
 
 def load_vectordb(sheet_url: str, page_content_column: str) -> VectorStore:
     return load_vectordb_id(faq_id(sheet_url), page_content_column)
+
+
+def delete_vectordb():
+    shutil.rmtree(VECTORDB_FOLDER, ignore_errors=True)
