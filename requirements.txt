@@ -4,3 +4,4 @@ sentence_transformers
 awadb
 fastapi
 uvicorn
+gradio
