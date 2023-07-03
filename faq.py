@@ -21,11 +21,7 @@ def faq_id(sheet_url: str) -> str:
     return sheet_url[x + len(sheet_url_x) : y] + "-" + sheet_url[y + len(sheet_url_y) :]
 
 
-def xlsx_url(sheet_url: str) -> str:
-    return sheet_url.replace(sheet_url_y, sheet_url_y_exp)
-
-
-def xlsx_url_faq_id(faq_id: str) -> str:
+def xlsx_url(faq_id: str) -> str:
     y = faq_id.rfind("-")
     return sheet_url_x + faq_id[0:y] + sheet_url_y_exp + faq_id[y + 1 :]
 
@@ -49,24 +45,25 @@ def embedding_function(model_name: str) -> HuggingFaceEmbeddings:
 
 def vectordb(
     faq_id: str,
-    documents: List[Document],
     embedding_function: Embeddings,
-    init: bool = False,
+    documents: List[Document] = None
 ) -> VectorStore:
     vectordb = None
-    if init:
+    if documents is None:
+        vectordb = AwaDB(
+            embedding=embedding_function,
+            log_and_data_dir=dir_vectordb
+        )
+        success = vectordb.load_local(table_name=faq_id)
+        if not success:
+            raise Exception("faq_id may not exists")
+    else:
         vectordb = AwaDB.from_documents(
             documents=documents,
             embedding=embedding_function,
             table_name=faq_id,
             log_and_data_dir=dir_vectordb
         )
-    else:
-        vectordb = AwaDB(
-            embedding=embedding_function,
-            log_and_data_dir=dir_vectordb
-        )
-        vectordb.load_local(table_name=faq_id)
     return vectordb
 
 
