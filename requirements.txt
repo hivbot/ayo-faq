@@ -2,3 +2,5 @@ openpyxl
 langchain
 sentence_transformers
 awadb
+fastapi
+uvicorn

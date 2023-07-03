@@ -35,7 +35,7 @@ def create_documents(df: pd.DataFrame, page_content_column: str) -> pd.DataFrame
     return loader.load()
 
 
-def embedding_function(model_name: str) -> HuggingFaceEmbeddings:
+def define_embedding_function(model_name: str) -> HuggingFaceEmbeddings:
     return HuggingFaceEmbeddings(
         model_name=model_name,
         encode_kwargs={"normalize_embeddings": True},
@@ -43,7 +43,7 @@ def embedding_function(model_name: str) -> HuggingFaceEmbeddings:
     )
 
 
-def vectordb(
+def get_vectordb(
     faq_id: str, embedding_function: Embeddings, documents: List[Document] = None
 ) -> VectorStore:
     vectordb = None
@@ -63,7 +63,23 @@ def vectordb(
 
 
 def similarity_search(
-    vectordb: VectorStore, query: str, k: int
+    vectordb: VectorStore, query: str, k: int = 3
 ) -> List[Tuple[Document, float]]:
     os.environ["TOKENIZERS_PARALLELISM"] = "true"
     return vectordb.similarity_search_with_relevance_scores(query=query, k=k)
+
+
+def load_vectordb_id(faq_id: str, page_content_column: str) -> VectorStore:
+    embedding_function = define_embedding_function("sentence-transformers/all-mpnet-base-v2")
+    vectordb = None
+    try:
+        vectordb = get_vectordb(faq_id=faq_id, embedding_function=embedding_function)
+    except Exception as e:
+        df = read_df(xlsx_url(faq_id))
+        documents = create_documents(df, page_content_column)
+        vectordb = get_vectordb(faq_id=faq_id, embedding_function=embedding_function, documents=documents)
+    return vectordb
+
+
+def load_vectordb(sheet_url: str, page_content_column: str) -> VectorStore:
+    return load_vectordb_id(faq_id(sheet_url), page_content_column)
