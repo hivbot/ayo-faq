@@ -8,22 +8,22 @@ from langchain.embeddings.base import Embeddings
 from langchain.vectorstores.base import VectorStore
 import os
 
-sheet_url_x = "https://docs.google.com/spreadsheets/d/"
-sheet_url_y = "/edit#gid="
-sheet_url_y_exp = "/export?gid="
-cache_folder=".embedding-model"
-dir_vectordb = ".vectordb"
+SHEET_URL_X = "https://docs.google.com/spreadsheets/d/"
+SHEET_URL_Y = "/edit#gid="
+SHEET_URL_Y_EXPORT = "/export?gid="
+CACHE_FOLDER = ".embedding-model"
+VECTORDB_FOLDER = ".vectordb"
 
 
 def faq_id(sheet_url: str) -> str:
-    x = sheet_url.find(sheet_url_x)
-    y = sheet_url.find(sheet_url_y)
-    return sheet_url[x + len(sheet_url_x) : y] + "-" + sheet_url[y + len(sheet_url_y) :]
+    x = sheet_url.find(SHEET_URL_X)
+    y = sheet_url.find(SHEET_URL_Y)
+    return sheet_url[x + len(SHEET_URL_X) : y] + "-" + sheet_url[y + len(SHEET_URL_Y) :]
 
 
 def xlsx_url(faq_id: str) -> str:
     y = faq_id.rfind("-")
-    return sheet_url_x + faq_id[0:y] + sheet_url_y_exp + faq_id[y + 1 :]
+    return SHEET_URL_X + faq_id[0:y] + SHEET_URL_Y_EXPORT + faq_id[y + 1 :]
 
 
 def read_df(xlsx_url: str) -> pd.DataFrame:
@@ -39,21 +39,16 @@ def embedding_function(model_name: str) -> HuggingFaceEmbeddings:
     return HuggingFaceEmbeddings(
         model_name=model_name,
         encode_kwargs={"normalize_embeddings": True},
-        cache_folder=cache_folder
+        cache_folder=CACHE_FOLDER,
     )
 
 
 def vectordb(
-    faq_id: str,
-    embedding_function: Embeddings,
-    documents: List[Document] = None
+    faq_id: str, embedding_function: Embeddings, documents: List[Document] = None
 ) -> VectorStore:
     vectordb = None
     if documents is None:
-        vectordb = AwaDB(
-            embedding=embedding_function,
-            log_and_data_dir=dir_vectordb
-        )
+        vectordb = AwaDB(embedding=embedding_function, log_and_data_dir=VECTORDB_FOLDER)
         success = vectordb.load_local(table_name=faq_id)
         if not success:
             raise Exception("faq_id may not exists")
@@ -62,11 +57,13 @@ def vectordb(
             documents=documents,
             embedding=embedding_function,
             table_name=faq_id,
-            log_and_data_dir=dir_vectordb
+            log_and_data_dir=VECTORDB_FOLDER,
         )
     return vectordb
 
 
-def similarity_search(vectordb: VectorStore, query: str, k: int) -> List[Tuple[Document, float]]:
+def similarity_search(
+    vectordb: VectorStore, query: str, k: int
+) -> List[Tuple[Document, float]]:
     os.environ["TOKENIZERS_PARALLELISM"] = "true"
     return vectordb.similarity_search_with_relevance_scores(query=query, k=k)
