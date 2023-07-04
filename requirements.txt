@@ -4,4 +4,4 @@ sentence_transformers
 awadb
 fastapi
 uvicorn
-gradio
+gradio==3.35.2
