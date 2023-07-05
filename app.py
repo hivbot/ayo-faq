@@ -24,9 +24,9 @@ async def ask_api(request: AskRequest):
 
 @app.post("/api/v2/ask")
 async def ask_api(request: AskRequest):
-    faq_id = faq.faq_id(request.sheet_url)
-    xlsx_url = faq.xlsx_url(faq_id)
-    df = faq.read_df(xlsx_url)
+    faq_id = util.get_id(request.sheet_url)
+    xlsx_url = util.xlsx_url(faq_id)
+    df = util.read_df(xlsx_url)
     df_update = util.split_page_breaks(df, request.page_content_column)
     documents = faq.create_documents(df_update, request.page_content_column)
     embedding_function = faq.define_embedding_function("sentence-transformers/all-mpnet-base-v2")
