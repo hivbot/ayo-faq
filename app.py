@@ -4,6 +4,7 @@ import faq as faq
 import util as util
 import uvicorn
 import gradio as gr
+from typing import List, Optional
 
 app = FastAPI()
 
@@ -15,6 +16,15 @@ class AskRequest(BaseModel):
     k: int
 
 
+class AskRequestEx(BaseModel):
+    question: str
+    sheet_url: str
+    page_content_column: str
+    k: int
+    id_column: str
+    synonyms: Optional[List[List[str]]] = None
+
+
 @app.post("/api/v1/ask")
 async def ask_api(request: AskRequest):
     return ask(
@@ -23,12 +33,14 @@ async def ask_api(request: AskRequest):
 
 
 @app.post("/api/v2/ask")
-async def ask_api(request: AskRequest):
+async def ask_api(request: AskRequestEx):
     util.SPLIT_PAGE_BREAKS = True
+    if request.synonyms is not None:
+        util.SYNONYMS = request.synonyms
     vectordb = faq.load_vectordb(request.sheet_url, request.page_content_column)
     documents = faq.similarity_search(vectordb, request.question, k=request.k)
     df_doc = util.transform_documents_to_dataframe(documents)
-    df_filter = util.remove_duplicates_by_column(df_doc, "ID")
+    df_filter = util.remove_duplicates_by_column(df_doc, request.id_column)
     return util.dataframe_to_dict(df_filter)
 
 

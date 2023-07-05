@@ -103,7 +103,7 @@ def create_vectordb_id(
     if embedding_function is None:
         embedding_function = define_embedding_function(EMBEDDING_MODEL)
 
-    df = util.read_df(util.xlsx_url(faq_id))
+    df = util.read_df(util.xlsx_url(faq_id), page_content_column)
     documents = create_documents(df, page_content_column)
     vectordb = get_vectordb(
         faq_id=faq_id, embedding_function=embedding_function, documents=documents

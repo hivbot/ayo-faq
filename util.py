@@ -4,6 +4,7 @@ SHEET_URL_X = "https://docs.google.com/spreadsheets/d/"
 SHEET_URL_Y = "/edit#gid="
 SHEET_URL_Y_EXPORT = "/export?gid="
 SPLIT_PAGE_BREAKS = False
+SYNONYMS = None
 
 
 def get_id(sheet_url: str) -> str:
@@ -17,10 +18,12 @@ def xlsx_url(get_id: str) -> str:
     return SHEET_URL_X + get_id[0:y] + SHEET_URL_Y_EXPORT + get_id[y + 1 :]
 
 
-def read_df(xlsx_url: str, split_page_breaks: bool = SPLIT_PAGE_BREAKS) -> pd.DataFrame:
+def read_df(xlsx_url: str, page_content_column: str) -> pd.DataFrame:
     df = pd.read_excel(xlsx_url, header=0, keep_default_na=False)
-    if split_page_breaks:
+    if SPLIT_PAGE_BREAKS:
         df = split_page_breaks(df, page_content_column)
+    if SYNONYMS is not None:
+        df = duplicate_rows_with_synonyms(df, page_content_column, SYNONYMS)
     return df
 
 
@@ -71,3 +74,20 @@ def dataframe_to_dict(df):
     df_records = df.to_dict(orient="records")
 
     return df_records
+
+
+def duplicate_rows_with_synonyms(df, column, synonyms):
+    new_rows = []
+    for index, row in df.iterrows():
+        new_rows.append(row)
+        for synonym_list in synonyms:
+            for word in row[column].split():
+                if word in synonym_list:
+                    for synonym in synonym_list:
+                        if synonym != word:
+                            new_row = row.copy()
+                            new_row[column] = row[column].replace(word, synonym)
+                            new_rows.append(new_row)
+    new_df = pd.DataFrame(new_rows, columns=df.columns)
+    new_df = new_df.reset_index(drop=True)
+    return new_df
