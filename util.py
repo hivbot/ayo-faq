@@ -3,6 +3,7 @@ import pandas as pd
 SHEET_URL_X = "https://docs.google.com/spreadsheets/d/"
 SHEET_URL_Y = "/edit#gid="
 SHEET_URL_Y_EXPORT = "/export?gid="
+SPLIT_PAGE_BREAKS = False
 
 
 def get_id(sheet_url: str) -> str:
@@ -16,8 +17,11 @@ def xlsx_url(get_id: str) -> str:
     return SHEET_URL_X + get_id[0:y] + SHEET_URL_Y_EXPORT + get_id[y + 1 :]
 
 
-def read_df(xlsx_url: str) -> pd.DataFrame:
-    return pd.read_excel(xlsx_url, header=0, keep_default_na=False)
+def read_df(xlsx_url: str, split_page_breaks: bool = SPLIT_PAGE_BREAKS) -> pd.DataFrame:
+    df = pd.read_excel(xlsx_url, header=0, keep_default_na=False)
+    if split_page_breaks:
+        df = split_page_breaks(df, page_content_column)
+    return df
 
 
 def split_page_breaks(df, column_name):

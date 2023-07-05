@@ -24,13 +24,8 @@ async def ask_api(request: AskRequest):
 
 @app.post("/api/v2/ask")
 async def ask_api(request: AskRequest):
-    faq_id = util.get_id(request.sheet_url)
-    xlsx_url = util.xlsx_url(faq_id)
-    df = util.read_df(xlsx_url)
-    df_update = util.split_page_breaks(df, request.page_content_column)
-    documents = faq.create_documents(df_update, request.page_content_column)
-    embedding_function = faq.define_embedding_function("sentence-transformers/all-mpnet-base-v2")
-    vectordb = faq.get_vectordb(faq_id=faq_id, embedding_function=embedding_function, documents=documents, vectordb_type=faq.VECTORDB_TYPE.Chroma)
+    util.SPLIT_PAGE_BREAKS = True
+    vectordb = faq.load_vectordb(request.sheet_url, request.page_content_column)
     documents = faq.similarity_search(vectordb, request.question, k=request.k)
     df_doc = util.transform_documents_to_dataframe(documents)
     df_filter = util.remove_duplicates_by_column(df_doc, "ID")
