@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
 import faq as faq
+import util as util
 import uvicorn
 import gradio as gr
 
@@ -19,6 +20,21 @@ async def ask_api(request: AskRequest):
     return ask(
         request.sheet_url, request.page_content_column, request.k, request.question
     )
+
+
+@app.post("/api/v2/ask")
+async def ask_api(request: AskRequest):
+    faq_id = faq.faq_id(request.sheet_url)
+    xlsx_url = faq.xlsx_url(faq_id)
+    df = faq.read_df(xlsx_url)
+    df_update = util.split_page_breaks(df, request.page_content_column)
+    documents = faq.create_documents(df_update, request.page_content_column)
+    embedding_function = faq.define_embedding_function("sentence-transformers/all-mpnet-base-v2")
+    vectordb = faq.get_vectordb(faq_id=faq_id, embedding_function=embedding_function, documents=documents, vectordb_type=faq.VECTORDB_TYPE.Chroma)
+    documents = faq.similarity_search(vectordb, request.question, k=request.k)
+    df_doc = util.transform_documents_to_dataframe(documents)
+    df_filter = util.remove_duplicates_by_column(df_doc, "ID")
+    return util.serialize_dataframe_as_json(df_filter)
 
 
 @app.delete("/api/v1/")
