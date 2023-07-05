@@ -1,20 +1,22 @@
 import pandas as pd
 from langchain.document_loaders import DataFrameLoader
 from langchain.embeddings import HuggingFaceEmbeddings
-from langchain.vectorstores import AwaDB
+from langchain.vectorstores import AwaDB, Chroma
 from typing import List, Tuple
 from langchain.docstore.document import Document
 from langchain.embeddings.base import Embeddings
 from langchain.vectorstores.base import VectorStore
 import os
 import shutil
+from enum import Enum
 
 SHEET_URL_X = "https://docs.google.com/spreadsheets/d/"
 SHEET_URL_Y = "/edit#gid="
 SHEET_URL_Y_EXPORT = "/export?gid="
-CACHE_FOLDER = ".embedding-model"
+EMBEDDING_MODEL_FOLDER = ".embedding-model"
 VECTORDB_FOLDER = ".vectordb"
 EMBEDDING_MODEL = "sentence-transformers/all-mpnet-base-v2"
+VECTORDB_TYPE = Enum("VECTORDB_TYPE", ["AwaDB", "Chroma"])
 
 
 def faq_id(sheet_url: str) -> str:
@@ -41,26 +43,39 @@ def define_embedding_function(model_name: str) -> HuggingFaceEmbeddings:
     return HuggingFaceEmbeddings(
         model_name=model_name,
         encode_kwargs={"normalize_embeddings": True},
-        cache_folder=CACHE_FOLDER,
+        cache_folder=EMBEDDING_MODEL_FOLDER,
     )
 
 
 def get_vectordb(
-    faq_id: str, embedding_function: Embeddings, documents: List[Document] = None
+    faq_id: str, embedding_function: Embeddings, documents: List[Document] = None, vectordb_type: str = VECTORDB_TYPE.AwaDB
 ) -> VectorStore:
     vectordb = None
-    if documents is None:
-        vectordb = AwaDB(embedding=embedding_function, log_and_data_dir=VECTORDB_FOLDER)
-        success = vectordb.load_local(table_name=faq_id)
-        if not success:
-            raise Exception("faq_id may not exists")
-    else:
-        vectordb = AwaDB.from_documents(
-            documents=documents,
-            embedding=embedding_function,
-            table_name=faq_id,
-            log_and_data_dir=VECTORDB_FOLDER,
-        )
+
+    if vectordb_type is VECTORDB_TYPE.AwaDB:
+        if documents is None:
+            vectordb = AwaDB(embedding=embedding_function, log_and_data_dir=VECTORDB_FOLDER)
+            if not vectordb.load_local(table_name=faq_id):
+                raise Exception("faq_id may not exists")
+        else:
+            vectordb = AwaDB.from_documents(
+                documents=documents,
+                embedding=embedding_function,
+                table_name=faq_id,
+                log_and_data_dir=VECTORDB_FOLDER,
+            )
+    if vectordb_type is VECTORDB_TYPE.Chroma:
+        if documents is None:
+            vectordb = Chroma(collection_name=faq_id, embedding_function=embedding_function, persist_directory=VECTORDB_FOLDER)
+            if not vectordb.get()["ids"]:
+                raise Exception("faq_id may not exists")
+        else:
+            vectordb = Chroma.from_documents(
+                documents=documents,
+                embedding=embedding_function,
+                collection_name=faq_id,
+                persist_directory=VECTORDB_FOLDER,
+            )
     return vectordb
 
 
