@@ -14,7 +14,8 @@ from enum import Enum
 EMBEDDING_MODEL_FOLDER = ".embedding-model"
 VECTORDB_FOLDER = ".vectordb"
 EMBEDDING_MODEL = "sentence-transformers/all-mpnet-base-v2"
-VECTORDB_TYPE = Enum("VECTORDB_TYPE", ["AwaDB", "Chroma"])
+VECTORDB_TYPES = Enum("VECTORDB_TYPES", ["AwaDB", "Chroma"])
+VECTORDB_TYPE = VECTORDB_TYPES.AwaDB
 
 
 def create_documents(df: pd.DataFrame, page_content_column: str) -> pd.DataFrame:
@@ -31,13 +32,18 @@ def define_embedding_function(model_name: str) -> HuggingFaceEmbeddings:
 
 
 def get_vectordb(
-    faq_id: str, embedding_function: Embeddings, documents: List[Document] = None, vectordb_type: str = VECTORDB_TYPE.AwaDB
+    faq_id: str,
+    embedding_function: Embeddings,
+    documents: List[Document] = None,
+    vectordb_type: str = VECTORDB_TYPE,
 ) -> VectorStore:
     vectordb = None
 
-    if vectordb_type is VECTORDB_TYPE.AwaDB:
+    if vectordb_type is VECTORDB_TYPES.AwaDB:
         if documents is None:
-            vectordb = AwaDB(embedding=embedding_function, log_and_data_dir=VECTORDB_FOLDER)
+            vectordb = AwaDB(
+                embedding=embedding_function, log_and_data_dir=VECTORDB_FOLDER
+            )
             if not vectordb.load_local(table_name=faq_id):
                 raise Exception("faq_id may not exists")
         else:
@@ -47,9 +53,13 @@ def get_vectordb(
                 table_name=faq_id,
                 log_and_data_dir=VECTORDB_FOLDER,
             )
-    if vectordb_type is VECTORDB_TYPE.Chroma:
+    if vectordb_type is VECTORDB_TYPES.Chroma:
         if documents is None:
-            vectordb = Chroma(collection_name=faq_id, embedding_function=embedding_function, persist_directory=VECTORDB_FOLDER)
+            vectordb = Chroma(
+                collection_name=faq_id,
+                embedding_function=embedding_function,
+                persist_directory=VECTORDB_FOLDER,
+            )
             if not vectordb.get()["ids"]:
                 raise Exception("faq_id may not exists")
         else:
@@ -79,6 +89,7 @@ def load_vectordb_id(
     try:
         vectordb = get_vectordb(faq_id=faq_id, embedding_function=embedding_function)
     except Exception as e:
+        print(e)
         vectordb = create_vectordb_id(faq_id, page_content_column, embedding_function)
 
     return vectordb

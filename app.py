@@ -38,6 +38,7 @@ async def delete_vectordb_api():
 
 
 def ask(sheet_url: str, page_content_column: str, k: int, question: str):
+    util.SPLIT_PAGE_BREAKS = False
     vectordb = faq.load_vectordb(sheet_url, page_content_column)
     result = faq.similarity_search(vectordb, question, k=k)
     return result

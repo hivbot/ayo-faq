@@ -68,6 +68,6 @@ def remove_duplicates_by_column(df, column):
 
 
 def dataframe_to_dict(df):
-    df_records = df.to_dict(orient='records')
+    df_records = df.to_dict(orient="records")
 
     return df_records
