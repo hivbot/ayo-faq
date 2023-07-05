@@ -1,5 +1,25 @@
 import pandas as pd
 
+SHEET_URL_X = "https://docs.google.com/spreadsheets/d/"
+SHEET_URL_Y = "/edit#gid="
+SHEET_URL_Y_EXPORT = "/export?gid="
+
+
+def get_id(sheet_url: str) -> str:
+    x = sheet_url.find(SHEET_URL_X)
+    y = sheet_url.find(SHEET_URL_Y)
+    return sheet_url[x + len(SHEET_URL_X) : y] + "-" + sheet_url[y + len(SHEET_URL_Y) :]
+
+
+def xlsx_url(get_id: str) -> str:
+    y = get_id.rfind("-")
+    return SHEET_URL_X + get_id[0:y] + SHEET_URL_Y_EXPORT + get_id[y + 1 :]
+
+
+def read_df(xlsx_url: str) -> pd.DataFrame:
+    return pd.read_excel(xlsx_url, header=0, keep_default_na=False)
+
+
 def split_page_breaks(df, column_name):
     split_values = df[column_name].str.split("\n")
 
@@ -43,7 +63,7 @@ def remove_duplicates_by_column(df, column):
     return df
 
 
-def serialize_dataframe_as_json(df):
-    json_array = df.to_dict(orient='records')
+def dataframe_to_dict(df):
+    df_records = df.to_dict(orient='records')
 
-    return json_array
+    return df_records

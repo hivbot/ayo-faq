@@ -1,3 +1,4 @@
+import util as util
 import pandas as pd
 from langchain.document_loaders import DataFrameLoader
 from langchain.embeddings import HuggingFaceEmbeddings
@@ -10,28 +11,10 @@ import os
 import shutil
 from enum import Enum
 
-SHEET_URL_X = "https://docs.google.com/spreadsheets/d/"
-SHEET_URL_Y = "/edit#gid="
-SHEET_URL_Y_EXPORT = "/export?gid="
 EMBEDDING_MODEL_FOLDER = ".embedding-model"
 VECTORDB_FOLDER = ".vectordb"
 EMBEDDING_MODEL = "sentence-transformers/all-mpnet-base-v2"
 VECTORDB_TYPE = Enum("VECTORDB_TYPE", ["AwaDB", "Chroma"])
-
-
-def faq_id(sheet_url: str) -> str:
-    x = sheet_url.find(SHEET_URL_X)
-    y = sheet_url.find(SHEET_URL_Y)
-    return sheet_url[x + len(SHEET_URL_X) : y] + "-" + sheet_url[y + len(SHEET_URL_Y) :]
-
-
-def xlsx_url(faq_id: str) -> str:
-    y = faq_id.rfind("-")
-    return SHEET_URL_X + faq_id[0:y] + SHEET_URL_Y_EXPORT + faq_id[y + 1 :]
-
-
-def read_df(xlsx_url: str) -> pd.DataFrame:
-    return pd.read_excel(xlsx_url, header=0, keep_default_na=False)
 
 
 def create_documents(df: pd.DataFrame, page_content_column: str) -> pd.DataFrame:
@@ -109,7 +92,7 @@ def create_vectordb_id(
     if embedding_function is None:
         embedding_function = define_embedding_function(EMBEDDING_MODEL)
 
-    df = read_df(xlsx_url(faq_id))
+    df = util.read_df(util.xlsx_url(faq_id))
     documents = create_documents(df, page_content_column)
     vectordb = get_vectordb(
         faq_id=faq_id, embedding_function=embedding_function, documents=documents
@@ -118,7 +101,7 @@ def create_vectordb_id(
 
 
 def load_vectordb(sheet_url: str, page_content_column: str) -> VectorStore:
-    return load_vectordb_id(faq_id(sheet_url), page_content_column)
+    return load_vectordb_id(util.get_id(sheet_url), page_content_column)
 
 
 def delete_vectordb():

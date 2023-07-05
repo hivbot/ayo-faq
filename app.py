@@ -34,7 +34,7 @@ async def ask_api(request: AskRequest):
     documents = faq.similarity_search(vectordb, request.question, k=request.k)
     df_doc = util.transform_documents_to_dataframe(documents)
     df_filter = util.remove_duplicates_by_column(df_doc, "ID")
-    return util.serialize_dataframe_as_json(df_filter)
+    return util.dataframe_to_dict(df_filter)
 
 
 @app.delete("/api/v1/")
