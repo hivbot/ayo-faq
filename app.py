@@ -10,30 +10,26 @@ from fastapi.responses import JSONResponse
 app = FastAPI()
 
 
-class AskRequest(BaseModel):
-    question: str
+class Request(BaseModel):
+    Optional[question]: str = "?"
     sheet_url: str
     page_content_column: str
-    k: int = 20
-    reload_collection: Optional[bool] = None
+    k: Optional[int] = 20
+    reload_collection: Optional[bool] = False
     id_column: Optional[str] = None
     synonyms: Optional[List[List[str]]] = None
 
 
-@app.post("/api/v1/ask")
-async def ask_api(request: AskRequest):
-    return ask(
-        request.sheet_url, request.page_content_column, request.k, request.question
-    )
-
-
-@app.post("/api/v2/ask")
-async def ask_api(request: AskRequest):
+@app.post("/api")
+async def post_api(request: Request) -> JSONResponse:
     if request.id_column is not None:
         util.SPLIT_PAGE_BREAKS = True
     if request.synonyms is not None:
         util.SYNONYMS = request.synonyms
     vectordb = faq.load_vectordb(request.sheet_url, request.page_content_column)
+    if request.reload_collection:
+        faq.delete_vectordb_current_collection(vectordb)
+        vectordb = faq.load_vectordb(request.sheet_url, request.page_content_column)
     documents = faq.similarity_search(vectordb, request.question, k=request.k)
     df_doc = util.transform_documents_to_dataframe(documents)
     if request.id_column is not None:
@@ -41,37 +37,50 @@ async def ask_api(request: AskRequest):
     return JSONResponse(util.dataframe_to_dict(df_doc))
 
 
-@app.delete("/api/v1/")
-async def delete_vectordb_api():
-    return delete_vectordb()
+@app.put("/api")
+async def put_api(request: Request) -> bool:
+    success = False
+    if request.id_column is not None:
+        util.SPLIT_PAGE_BREAKS = True
+    if request.synonyms is not None:
+        util.SYNONYMS = request.synonyms
+    vectordb = faq.load_vectordb(request.sheet_url, request.page_content_column)
+    if request.reload_collection:
+        faq.delete_vectordb_current_collection(vectordb)
+        vectordb = faq.load_vectordb(request.sheet_url, request.page_content_column)
+        success = True
+    return success
 
 
-def ask(sheet_url: str, page_content_column: str, k: int, question: str):
+@app.delete("/api")
+async def delete_vectordb_api() -> None:
+    faq.delete_vectordb()
+
+
+def ask(sheet_url: str, page_content_column: str, k: int, reload_collection: bool, question: str):
     util.SPLIT_PAGE_BREAKS = False
     vectordb = faq.load_vectordb(sheet_url, page_content_column)
+    if reload_collection:
+        faq.delete_vectordb_current_collection(vectordb)
+        vectordb = faq.load_vectordb(sheet_url, page_content_column)
     documents = faq.similarity_search(vectordb, question, k=k)
     df_doc = util.transform_documents_to_dataframe(documents)
-    return util.dataframe_to_dict(df_doc)
-
-
-def delete_vectordb():
-    faq.delete_vectordb()
+    return util.dataframe_to_dict(df_doc), gr.Checkbox.update(False)
 
 
 with gr.Blocks() as block:
     sheet_url = gr.Textbox(label="Google Sheet URL")
     page_content_column = gr.Textbox(label="Question Column")
     k = gr.Slider(1, 30, step=1, label="K")
+    reload_collection = gr.Checkbox(label="Reload Collection?")
     question = gr.Textbox(label="Question")
     ask_button = gr.Button("Ask")
     answer_output = gr.JSON(label="Answer")
-    delete_button = gr.Button("Delete Vector DB")
     ask_button.click(
         ask,
-        inputs=[sheet_url, page_content_column, k, question],
-        outputs=answer_output,
+        inputs=[sheet_url, page_content_column, k, reload_collection, question],
+        outputs=[answer_output, reload_collection]
     )
-    delete_button.click(delete_vectordb)
 
 app = gr.mount_gradio_app(app, block, path="/")
 
