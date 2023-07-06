@@ -11,7 +11,7 @@ app = FastAPI()
 
 
 class Request(BaseModel):
-    Optional[question]: str = "?"
+    question: Optional[str] = "?"
     sheet_url: str
     page_content_column: str
     k: Optional[int] = 20
