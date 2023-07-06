@@ -1,4 +1,5 @@
 import pandas as pd
+from langchain.docstore.document import Document
 
 SHEET_URL_X = "https://docs.google.com/spreadsheets/d/"
 SHEET_URL_Y = "/edit#gid="
@@ -27,7 +28,7 @@ def read_df(xlsx_url: str, page_content_column: str) -> pd.DataFrame:
     return df
 
 
-def split_page_breaks(df, column_name):
+def split_page_breaks(df: pd.DataFrame, column_name: str) -> pd.DataFrame:
     split_values = df[column_name].str.split("\n")
 
     new_df = pd.DataFrame({column_name: split_values.explode()})
@@ -46,37 +47,35 @@ def split_page_breaks(df, column_name):
     return new_df
 
 
-def transform_documents_to_dataframe(documents):
-    metadata_keys = set()
-    for doc, _ in documents:
-        metadata_keys.update(doc.metadata.keys())
+def transform_documents_to_dataframe(documents: Document) -> pd.DataFrame:
+    keys = []
+    values = {"document_score": [], "page_content": []}
 
-    metadata_values = {key: [] for key in metadata_keys}
-    for doc, _ in documents:
+    for doc, score in documents:
         for key, value in doc.metadata.items():
-            metadata_values[key].append(value)
+            if key not in keys:
+                keys.append(key)
+                values[key] = []
+            values[key].append(value)
+        values["document_score"].append(score)
+        values["page_content"].append(doc.page_content)
 
-    metadata_values["Score"] = [score for _, score in documents]
+    return pd.DataFrame(values)
 
-    df = pd.DataFrame(metadata_values)
+
+def remove_duplicates_by_column(df: pd.DataFrame, column_name: str) -> pd.DataFrame:
+    df.drop_duplicates(subset=column_name, inplace=True, ignore_index=True)
 
     return df
 
 
-def remove_duplicates_by_column(df, column):
-    df.drop_duplicates(subset=column, inplace=True)
-    df.reset_index(drop=True, inplace=True)
-
-    return df
-
-
-def dataframe_to_dict(df):
+def dataframe_to_dict(df: pd.DataFrame) -> dict:
     df_records = df.to_dict(orient="records")
 
     return df_records
 
 
-def duplicate_rows_with_synonyms(df, column, synonyms):
+def duplicate_rows_with_synonyms(df: pd.DataFrame, column: str, synonyms: list[list[str]]) -> pd.DataFrame:
     new_rows = []
     for index, row in df.iterrows():
         new_rows.append(row)

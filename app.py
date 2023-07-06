@@ -5,6 +5,7 @@ import util as util
 import uvicorn
 import gradio as gr
 from typing import List, Optional
+from fastapi.responses import JSONResponse
 
 app = FastAPI()
 
@@ -13,15 +14,9 @@ class AskRequest(BaseModel):
     question: str
     sheet_url: str
     page_content_column: str
-    k: int
-
-
-class AskRequestEx(BaseModel):
-    question: str
-    sheet_url: str
-    page_content_column: str
-    k: int
-    id_column: str
+    k: int = 20
+    reload_collection: Optional[bool] = None
+    id_column: Optional[str] = None
     synonyms: Optional[List[List[str]]] = None
 
 
@@ -33,15 +28,17 @@ async def ask_api(request: AskRequest):
 
 
 @app.post("/api/v2/ask")
-async def ask_api(request: AskRequestEx):
-    util.SPLIT_PAGE_BREAKS = True
+async def ask_api(request: AskRequest):
+    if request.id_column is not None:
+        util.SPLIT_PAGE_BREAKS = True
     if request.synonyms is not None:
         util.SYNONYMS = request.synonyms
     vectordb = faq.load_vectordb(request.sheet_url, request.page_content_column)
     documents = faq.similarity_search(vectordb, request.question, k=request.k)
     df_doc = util.transform_documents_to_dataframe(documents)
-    df_filter = util.remove_duplicates_by_column(df_doc, request.id_column)
-    return util.dataframe_to_dict(df_filter)
+    if request.id_column is not None:
+        df_doc = util.remove_duplicates_by_column(df_doc, request.id_column)
+    return JSONResponse(util.dataframe_to_dict(df_doc))
 
 
 @app.delete("/api/v1/")
@@ -52,8 +49,9 @@ async def delete_vectordb_api():
 def ask(sheet_url: str, page_content_column: str, k: int, question: str):
     util.SPLIT_PAGE_BREAKS = False
     vectordb = faq.load_vectordb(sheet_url, page_content_column)
-    result = faq.similarity_search(vectordb, question, k=k)
-    return result
+    documents = faq.similarity_search(vectordb, question, k=k)
+    df_doc = util.transform_documents_to_dataframe(documents)
+    return util.dataframe_to_dict(df_doc)
 
 
 def delete_vectordb():
@@ -63,7 +61,7 @@ def delete_vectordb():
 with gr.Blocks() as block:
     sheet_url = gr.Textbox(label="Google Sheet URL")
     page_content_column = gr.Textbox(label="Question Column")
-    k = gr.Slider(2, 5, step=1, label="K")
+    k = gr.Slider(1, 30, step=1, label="K")
     question = gr.Textbox(label="Question")
     ask_button = gr.Button("Ask")
     answer_output = gr.JSON(label="Answer")

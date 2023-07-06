@@ -32,7 +32,7 @@ def define_embedding_function(model_name: str) -> HuggingFaceEmbeddings:
 
 
 def get_vectordb(
-    faq_id: str,
+    collection_id: str,
     embedding_function: Embeddings,
     documents: List[Document] = None,
     vectordb_type: str = VECTORDB_TYPE,
@@ -44,31 +44,32 @@ def get_vectordb(
             vectordb = AwaDB(
                 embedding=embedding_function, log_and_data_dir=VECTORDB_FOLDER
             )
-            if not vectordb.load_local(table_name=faq_id):
-                raise Exception("faq_id may not exists")
+            if not vectordb.load_local(table_name=collection_id):
+                raise Exception("collection_id may not exists")
         else:
             vectordb = AwaDB.from_documents(
                 documents=documents,
                 embedding=embedding_function,
-                table_name=faq_id,
+                table_name=collection_id,
                 log_and_data_dir=VECTORDB_FOLDER,
             )
     if vectordb_type is VECTORDB_TYPES.Chroma:
         if documents is None:
             vectordb = Chroma(
-                collection_name=faq_id,
+                collection_name=collection_id,
                 embedding_function=embedding_function,
                 persist_directory=VECTORDB_FOLDER,
             )
             if not vectordb.get()["ids"]:
-                raise Exception("faq_id may not exists")
+                raise Exception("collection_id may not exists")
         else:
             vectordb = Chroma.from_documents(
                 documents=documents,
                 embedding=embedding_function,
-                collection_name=faq_id,
+                collection_name=collection_id,
                 persist_directory=VECTORDB_FOLDER,
             )
+            vectordb.persist()
     return vectordb
 
 
@@ -80,33 +81,33 @@ def similarity_search(
 
 
 def load_vectordb_id(
-    faq_id: str,
+    collection_id: str,
     page_content_column: str,
     embedding_function_name: str = EMBEDDING_MODEL,
 ) -> VectorStore:
     embedding_function = define_embedding_function(embedding_function_name)
     vectordb = None
     try:
-        vectordb = get_vectordb(faq_id=faq_id, embedding_function=embedding_function)
+        vectordb = get_vectordb(collection_id=collection_id, embedding_function=embedding_function)
     except Exception as e:
         print(e)
-        vectordb = create_vectordb_id(faq_id, page_content_column, embedding_function)
+        vectordb = create_vectordb_id(collection_id, page_content_column, embedding_function)
 
     return vectordb
 
 
 def create_vectordb_id(
-    faq_id: str,
+    collection_id: str,
     page_content_column: str,
     embedding_function: HuggingFaceEmbeddings = None,
 ) -> VectorStore:
     if embedding_function is None:
         embedding_function = define_embedding_function(EMBEDDING_MODEL)
 
-    df = util.read_df(util.xlsx_url(faq_id), page_content_column)
+    df = util.read_df(util.xlsx_url(collection_id), page_content_column)
     documents = create_documents(df, page_content_column)
     vectordb = get_vectordb(
-        faq_id=faq_id, embedding_function=embedding_function, documents=documents
+        collection_id=collection_id, embedding_function=embedding_function, documents=documents
     )
     return vectordb
 
@@ -115,5 +116,10 @@ def load_vectordb(sheet_url: str, page_content_column: str) -> VectorStore:
     return load_vectordb_id(util.get_id(sheet_url), page_content_column)
 
 
-def delete_vectordb():
+def delete_vectordb() -> None:
     shutil.rmtree(VECTORDB_FOLDER, ignore_errors=True)
+
+
+def delete_vectordb_current_collection(vectordb: VectorStore) -> None:
+    vectordb.delete_collection()
+    vectordb.persist()
