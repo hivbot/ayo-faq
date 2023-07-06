@@ -15,7 +15,7 @@ EMBEDDING_MODEL_FOLDER = ".embedding-model"
 VECTORDB_FOLDER = ".vectordb"
 EMBEDDING_MODEL = "sentence-transformers/all-mpnet-base-v2"
 VECTORDB_TYPES = Enum("VECTORDB_TYPES", ["AwaDB", "Chroma"])
-VECTORDB_TYPE = VECTORDB_TYPES.AwaDB
+VECTORDB_TYPE = VECTORDB_TYPES.Chroma
 
 
 def create_documents(df: pd.DataFrame, page_content_column: str) -> pd.DataFrame:
@@ -121,5 +121,8 @@ def delete_vectordb() -> None:
 
 
 def delete_vectordb_current_collection(vectordb: VectorStore) -> None:
-    vectordb.delete_collection()
-    vectordb.persist()
+    if VECTORDB_TYPE is VECTORDB_TYPES.Chroma:
+        vectordb.delete_collection()
+        vectordb.persist()
+    if VECTORDB_TYPE is VECTORDB_TYPES.AwaDB:
+        delete_vectordb()
