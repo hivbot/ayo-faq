@@ -23,6 +23,7 @@ def read_df(xlsx_url: str, page_content_column: str) -> pd.DataFrame:
     df = pd.read_excel(xlsx_url, header=0, keep_default_na=False)
     if SPLIT_PAGE_BREAKS:
         df = split_page_breaks(df, page_content_column)
+    df = remove_empty_rows(df, page_content_column)
     if SYNONYMS is not None:
         df = duplicate_rows_with_synonyms(df, page_content_column, SYNONYMS)
     return df
@@ -90,3 +91,9 @@ def duplicate_rows_with_synonyms(df: pd.DataFrame, column: str, synonyms: list[l
     new_df = pd.DataFrame(new_rows, columns=df.columns)
     new_df = new_df.reset_index(drop=True)
     return new_df
+
+
+def remove_empty_rows(df: pd.DataFrame, column_name: str) -> pd.DataFrame:
+    df = df[df[column_name].str.strip().astype(bool)]
+    df = df.reset_index(drop=True)
+    return df
