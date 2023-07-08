@@ -1,5 +1,6 @@
 import pandas as pd
 from langchain.docstore.document import Document
+import re
 
 SHEET_URL_X = "https://docs.google.com/spreadsheets/d/"
 SHEET_URL_Y = "/edit#gid="
@@ -80,13 +81,15 @@ def duplicate_rows_with_synonyms(df: pd.DataFrame, column: str, synonyms: list[l
     new_rows = []
     for index, row in df.iterrows():
         new_rows.append(row)
+        text = row[column]
         for synonym_list in synonyms:
-            for word in row[column].split():
-                if word in synonym_list:
-                    for synonym in synonym_list:
-                        if synonym != word:
+            for synonym in synonym_list:
+                pattern = r'\b(?:{}|{}(?:s|es|ed|ing)?)\b'.format(synonym, synonym)
+                if re.search(pattern, text):
+                    for replacement in synonym_list:
+                        if replacement != synonym:
                             new_row = row.copy()
-                            new_row[column] = row[column].replace(word, synonym)
+                            new_row[column] = re.sub(pattern, replacement, text)
                             new_rows.append(new_row)
     new_df = pd.DataFrame(new_rows, columns=df.columns)
     new_df = new_df.reset_index(drop=True)
