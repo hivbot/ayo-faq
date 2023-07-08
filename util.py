@@ -84,7 +84,7 @@ def duplicate_rows_with_synonyms(df: pd.DataFrame, column: str, synonyms: list[l
         text = row[column]
         for synonym_list in synonyms:
             for synonym in synonym_list:
-                pattern = r'\b(?:{}|{}(?:s|es|ed|ing)?)\b'.format(synonym, synonym)
+                pattern = r'(?i)\b({}(?:s|es|ed|ing)?)\b'.format(synonym)
                 if re.search(pattern, text):
                     for replacement in synonym_list:
                         if replacement != synonym:
