@@ -5,4 +5,4 @@ chromadb
 pydantic
 fastapi
 uvicorn
-gradio==3.40.1
+gradio==3.41.0
