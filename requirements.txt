@@ -1,8 +1,8 @@
 openpyxl
 langchain
 sentence_transformers
-awadb
 chromadb
+pydantic
 fastapi
 uvicorn
-gradio==3.35.2
+gradio==3.40.1

@@ -1,21 +1,18 @@
 import util as util
 import pandas as pd
+import os
+import shutil
+from typing import List, Tuple
 from langchain.document_loaders import DataFrameLoader
 from langchain.embeddings import HuggingFaceEmbeddings
-from langchain.vectorstores import AwaDB, Chroma
-from typing import List, Tuple
+from langchain.vectorstores import Chroma
 from langchain.docstore.document import Document
 from langchain.embeddings.base import Embeddings
 from langchain.vectorstores.base import VectorStore
-import os
-import shutil
-from enum import Enum
 
 EMBEDDING_MODEL_FOLDER = ".embedding-model"
 VECTORDB_FOLDER = ".vectordb"
 EMBEDDING_MODEL = "sentence-transformers/all-mpnet-base-v2"
-VECTORDB_TYPES = Enum("VECTORDB_TYPES", ["AwaDB", "Chroma"])
-VECTORDB_TYPE = VECTORDB_TYPES.Chroma
 
 
 def create_documents(df: pd.DataFrame, page_content_column: str) -> pd.DataFrame:
@@ -35,41 +32,25 @@ def get_vectordb(
     collection_id: str,
     embedding_function: Embeddings,
     documents: List[Document] = None,
-    vectordb_type: str = VECTORDB_TYPE,
 ) -> VectorStore:
     vectordb = None
 
-    if vectordb_type is VECTORDB_TYPES.AwaDB:
-        if documents is None:
-            vectordb = AwaDB(
-                embedding=embedding_function, log_and_data_dir=VECTORDB_FOLDER
-            )
-            if not vectordb.load_local(table_name=collection_id):
-                raise Exception("collection_id may not exists")
-        else:
-            vectordb = AwaDB.from_documents(
-                documents=documents,
-                embedding=embedding_function,
-                table_name=collection_id,
-                log_and_data_dir=VECTORDB_FOLDER,
-            )
-    if vectordb_type is VECTORDB_TYPES.Chroma:
-        if documents is None:
-            vectordb = Chroma(
-                collection_name=collection_id,
-                embedding_function=embedding_function,
-                persist_directory=VECTORDB_FOLDER,
-            )
-            if not vectordb.get()["ids"]:
-                raise Exception("collection_id may not exists")
-        else:
-            vectordb = Chroma.from_documents(
-                documents=documents,
-                embedding=embedding_function,
-                collection_name=collection_id,
-                persist_directory=VECTORDB_FOLDER,
-            )
-            vectordb.persist()
+    if documents is None:
+        vectordb = Chroma(
+            collection_name=collection_id,
+            embedding_function=embedding_function,
+            persist_directory=VECTORDB_FOLDER,
+        )
+        if not vectordb.get()["ids"]:
+            raise Exception("collection_id may not exists")
+    else:
+        vectordb = Chroma.from_documents(
+            documents=documents,
+            embedding=embedding_function,
+            collection_name=collection_id,
+            persist_directory=VECTORDB_FOLDER,
+        )
+        vectordb.persist()
     return vectordb
 
 
@@ -88,10 +69,14 @@ def load_vectordb_id(
     embedding_function = define_embedding_function(embedding_function_name)
     vectordb = None
     try:
-        vectordb = get_vectordb(collection_id=collection_id, embedding_function=embedding_function)
+        vectordb = get_vectordb(
+            collection_id=collection_id, embedding_function=embedding_function
+        )
     except Exception as e:
         print(e)
-        vectordb = create_vectordb_id(collection_id, page_content_column, embedding_function)
+        vectordb = create_vectordb_id(
+            collection_id, page_content_column, embedding_function
+        )
 
     return vectordb
 
@@ -107,7 +92,9 @@ def create_vectordb_id(
     df = util.read_df(util.xlsx_url(collection_id), page_content_column)
     documents = create_documents(df, page_content_column)
     vectordb = get_vectordb(
-        collection_id=collection_id, embedding_function=embedding_function, documents=documents
+        collection_id=collection_id,
+        embedding_function=embedding_function,
+        documents=documents,
     )
     return vectordb
 
@@ -121,8 +108,5 @@ def delete_vectordb() -> None:
 
 
 def delete_vectordb_current_collection(vectordb: VectorStore) -> None:
-    if VECTORDB_TYPE is VECTORDB_TYPES.Chroma:
-        vectordb.delete_collection()
-        vectordb.persist()
-    if VECTORDB_TYPE is VECTORDB_TYPES.AwaDB:
-        delete_vectordb()
+    vectordb.delete_collection()
+    vectordb.persist()
