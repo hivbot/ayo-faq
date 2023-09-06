@@ -5,7 +5,7 @@ import shutil
 from typing import List, Tuple
 from langchain.document_loaders import DataFrameLoader
 from langchain.embeddings import HuggingFaceEmbeddings
-from langchain.vectorstores import Chroma
+from langchain.vectorstores import FAISS
 from langchain.docstore.document import Document
 from langchain.embeddings.base import Embeddings
 from langchain.vectorstores.base import VectorStore
@@ -36,21 +36,17 @@ def get_vectordb(
     vectordb = None
 
     if documents is None:
-        vectordb = Chroma(
-            collection_name=collection_id,
-            embedding_function=embedding_function,
-            persist_directory=VECTORDB_FOLDER,
-        )
-        if not vectordb.get()["ids"]:
+        try:
+            vectordb = FAISS.load_local(VECTORDB_FOLDER+"/"+collection_id, embedding_function)
+        except RuntimeError:
+            vectordb = None
             raise Exception("collection_id may not exists")
     else:
-        vectordb = Chroma.from_documents(
+        vectordb = FAISS.from_documents(
             documents=documents,
             embedding=embedding_function,
-            collection_name=collection_id,
-            persist_directory=VECTORDB_FOLDER,
         )
-        vectordb.persist()
+        vectordb.save_local(VECTORDB_FOLDER+"/"+collection_id)
     return vectordb
 
 
@@ -107,6 +103,5 @@ def delete_vectordb() -> None:
     shutil.rmtree(VECTORDB_FOLDER, ignore_errors=True)
 
 
-def delete_vectordb_current_collection(vectordb: VectorStore) -> None:
-    vectordb.delete_collection()
-    vectordb.persist()
+def delete_vectordb_sheet_collection(sheet_url: str) -> None:
+    shutil.rmtree(VECTORDB_FOLDER+"/"+util.get_id(sheet_url), ignore_errors=True)

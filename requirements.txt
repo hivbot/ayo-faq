@@ -1,7 +1,7 @@
 openpyxl
 langchain
 sentence_transformers
-chromadb
+faiss-cpu
 pydantic
 fastapi
 uvicorn

@@ -26,10 +26,9 @@ async def post_api(request: Request) -> JSONResponse:
         util.SPLIT_PAGE_BREAKS = True
     if request.synonyms is not None:
         util.SYNONYMS = request.synonyms
-    vectordb = faq.load_vectordb(request.sheet_url, request.page_content_column)
     if request.reload_collection:
-        faq.delete_vectordb_current_collection(vectordb)
-        vectordb = faq.load_vectordb(request.sheet_url, request.page_content_column)
+        faq.delete_vectordb_sheet_collection(request.sheet_url)
+    vectordb = faq.load_vectordb(request.sheet_url, request.page_content_column)
     documents = faq.similarity_search(vectordb, request.question, k=request.k)
     df_doc = util.transform_documents_to_dataframe(documents)
     if request.id_column is not None:
@@ -44,11 +43,10 @@ async def put_api(request: Request) -> bool:
         util.SPLIT_PAGE_BREAKS = True
     if request.synonyms is not None:
         util.SYNONYMS = request.synonyms
-    vectordb = faq.load_vectordb(request.sheet_url, request.page_content_column)
     if request.reload_collection:
-        faq.delete_vectordb_current_collection(vectordb)
-        vectordb = faq.load_vectordb(request.sheet_url, request.page_content_column)
+        faq.delete_vectordb_sheet_collection(request.sheet_url)
         success = True
+    vectordb = faq.load_vectordb(request.sheet_url, request.page_content_column)
     return success
 
 
@@ -59,10 +57,9 @@ async def delete_vectordb_api() -> None:
 
 def ask(sheet_url: str, page_content_column: str, k: int, reload_collection: bool, question: str):
     util.SPLIT_PAGE_BREAKS = False
-    vectordb = faq.load_vectordb(sheet_url, page_content_column)
     if reload_collection:
-        faq.delete_vectordb_current_collection(vectordb)
-        vectordb = faq.load_vectordb(sheet_url, page_content_column)
+        faq.delete_vectordb_sheet_collection(sheet_url)
+    vectordb = faq.load_vectordb(sheet_url, page_content_column)
     documents = faq.similarity_search(vectordb, question, k=k)
     df_doc = util.transform_documents_to_dataframe(documents)
     return util.dataframe_to_dict(df_doc), gr.Checkbox.update(False)
